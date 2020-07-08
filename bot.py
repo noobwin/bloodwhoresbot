@@ -1,34 +1,36 @@
+from pymongo import MongoClient
 import telebot
 import os
 
-from paths import CHATS_PATH
-
-# with open("token.txt") as tk:
+# with open("token.txt", "r") as tk:
 #     TOKEN = tk.readline()
+
+# with open("mongodb_url.txt", "r") as tk:
+#     MONGODB_TOKEN = tk.readline().rstrip()
 
 TOKEN = os.environ["TOKEN"]
 
+MONGO_USERNAME = os.environ["MONGO_USERNAME"]
+MONGO_PASSWORD = os.environ["MONGO_PASSWORD"]
+MONGO_DB = os.environ["MONGO_DB"]
+with open("mongodb_url.txt", "r") as tk:
+    MONGODB_TOKEN = tk.readline().format(MONGO_USERNAME, MONGO_PASSWORD, MONGO_DB)
+
+
 bot = telebot.TeleBot(TOKEN)
+
+cluster = MongoClient(MONGODB_TOKEN)
+db = cluster[MONGO_DB]
+collection = db["chats"]
 
 
 @bot.message_handler(func=lambda m: True)
 def echo_all(message):
     chat = message.chat
     sender = message.from_user
-    current_chat_path = "{}/{}".format(CHATS_PATH, chat.id)
-    players_path = "{}/players.txt".format(current_chat_path)
-
-    if not os.path.isdir(current_chat_path):
-        os.mkdir(current_chat_path)
-
-    tmp = open(players_path, "a")
-    tmp.close()
-
-    with open(players_path, "r") as players_file:
-        players = [int(line.rstrip()) for line in players_file]
-    if sender.id not in players:
-        with open("{}/players.txt".format(current_chat_path), "a") as players_file:
-            print(sender.id, file=players_file)
+    my_user = collection.find_one({"personal_id": sender.id, "chat_id": chat.id})
+    if my_user is None:
+        collection.insert_one({"personal_id": sender.id, "chat_id": chat.id, "score": 0})
         bot.send_message(chat.id, "Player {} registered successfully!".format(sender.username))
     else:
         bot.send_message(chat.id, "Player {} is already registered!".format(sender.username))
