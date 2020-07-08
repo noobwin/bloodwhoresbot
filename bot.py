@@ -3,8 +3,10 @@ import os
 
 from paths import CHATS_PATH
 
-with open("token.txt") as tk:
-    TOKEN = tk.readline()
+# with open("token.txt") as tk:
+#     TOKEN = tk.readline()
+
+TOKEN = os.environ["TOKEN"]
 
 bot = telebot.TeleBot(TOKEN)
 
