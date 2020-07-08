@@ -28,6 +28,8 @@ def echo_all(message):
         with open("{}/players.txt".format(current_chat_path), "a") as players_file:
             print(sender.id, file=players_file)
         bot.send_message(chat.id, "Player {} registered successfully!".format(sender.username))
+    else:
+        bot.send_message(chat.id, "Player {} is already registered!".format(sender.username))
 
 
 bot.polling()
