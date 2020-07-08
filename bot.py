@@ -20,8 +20,8 @@ with open("mongodb_url.txt", "r") as tk:
 bot = telebot.TeleBot(TOKEN)
 
 cluster = MongoClient(MONGODB_TOKEN)
-db = cluster[MONGO_DB]
-collection = db["chats"]
+dbase = cluster[MONGO_DB]
+collection = dbase["chats"]
 
 
 @bot.message_handler(commands=["register"])
