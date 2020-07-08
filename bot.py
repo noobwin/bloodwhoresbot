@@ -14,7 +14,7 @@ MONGO_USERNAME = os.environ["MONGO_USERNAME"]
 MONGO_PASSWORD = os.environ["MONGO_PASSWORD"]
 MONGO_DB = os.environ["MONGO_DB"]
 with open("mongodb_url.txt", "r") as tk:
-    MONGODB_TOKEN = tk.readline().format(MONGO_USERNAME, MONGO_PASSWORD, MONGO_DB)
+    MONGODB_TOKEN = tk.readline().format(MONGO_USERNAME, MONGO_PASSWORD, MONGO_DB).rstrip()
 
 
 bot = telebot.TeleBot(TOKEN)
