@@ -2,25 +2,25 @@ from pymongo import MongoClient
 import telebot
 import os
 
-with open("token.txt", "r") as tk:
-    TOKEN = tk.readline()
+# with open("token.txt", "r") as tk:
+#     TOKEN = tk.readline()
 
-with open("mongodb_url.txt", "r") as tk:
-    MONGODB_TOKEN = tk.readline().rstrip()
-
-# TOKEN = os.environ["TOKEN"]
-
-# MONGO_USERNAME = os.environ["MONGO_USERNAME"]
-# MONGO_PASSWORD = os.environ["MONGO_PASSWORD"]
-# MONGO_DB = os.environ["MONGO_DB"]
 # with open("mongodb_url.txt", "r") as tk:
-#     MONGODB_TOKEN = tk.readline().format(MONGO_USERNAME, MONGO_PASSWORD, MONGO_DB)
+#     MONGODB_TOKEN = tk.readline().rstrip()
+
+TOKEN = os.environ["TOKEN"]
+
+MONGO_USERNAME = os.environ["MONGO_USERNAME"]
+MONGO_PASSWORD = os.environ["MONGO_PASSWORD"]
+MONGO_DB = os.environ["MONGO_DB"]
+with open("mongodb_url.txt", "r") as tk:
+    MONGODB_TOKEN = tk.readline().format(MONGO_USERNAME, MONGO_PASSWORD, MONGO_DB)
 
 
 bot = telebot.TeleBot(TOKEN)
 
 cluster = MongoClient(MONGODB_TOKEN)
-db = cluster["BloodWhoresData"]
+db = cluster[MONGO_DB]
 collection = db["chats"]
 
 
