@@ -1,1 +1,1 @@
-mongodb+srv://NoobLose:OcOhSgqq53i6HVl1@bloodwhores.yrmrw.gcp.mongodb.net/{}?retryWrites=true&w=majority
+mongodb+srv://{}:{}@bloodwhores.yrmrw.gcp.mongodb.net/{}?retryWrites=true&w=majority
