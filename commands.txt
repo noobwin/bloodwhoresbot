@@ -1,0 +1,3 @@
+register - Зарегистрироваться в "Pidor Of The Day"
+pidor - Запустить "Pidor Of The Day"
+pidorstats - Статистика "Pidor Of The Day"
