@@ -54,8 +54,6 @@ def add_new_player(user, chat):
     return True
 
 
-MONGO_DB = "BloodWhoresData"
-
 bot = telebot.TeleBot(TOKEN)
 
 cluster = MongoClient(MONGODB_TOKEN)
@@ -158,8 +156,7 @@ def echo_piustats(message):
     stats_message = get_random_file(stats_messages, {"game": "piu"})
 
     stats_list = "\n".join(
-        [stats_message["list_format"].format(i + 1, bot.get_chat_member(chat.id, personal_id).user.username, score,
-                                             declination_count(score))
+        [stats_message["list_format"].format(i + 1, bot.get_chat_member(chat.id, personal_id).user.username, score)
          for i, personal_id, score in participants])
 
     if len([1 for i, personal_id, score in participants if score == participants[0][2]]) > 1:
