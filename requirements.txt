@@ -6,3 +6,4 @@ pymongo==3.10.1
 pyTelegramBotAPI==3.7.2
 six==1.15.0
 urllib3==1.25.9
+emoji==0.5.4
