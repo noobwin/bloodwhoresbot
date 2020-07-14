@@ -14,12 +14,12 @@ import datetime
 # with open("mongodb_url.txt", "r") as tk:
 #     MONGODB_TOKEN = tk.readline().rstrip()
 
-
 TOKEN = environ["TOKEN"]
 
 MONGO_USERNAME = environ["MONGO_USERNAME"]
 MONGO_PASSWORD = environ["MONGO_PASSWORD"]
 MONGO_DB = environ["MONGO_DB"]
+
 
 with open("mongodb_url.txt", "r") as tk:
     MONGODB_TOKEN = tk.readline().format(MONGO_USERNAME, MONGO_PASSWORD, MONGO_DB).rstrip()
@@ -90,7 +90,12 @@ def echo_register(message):
 @bot.message_handler(commands=["pidor"])
 def echo_pidor(message):
     chats = dbase["chats"]
+    cheated = dbase["cheated"]
     chat = message.chat
+
+    cheated_participants = [bot.get_chat_member(chat.id, participant["personal_id"]) for participant in
+                            cheated.find({"chat_id": chat.id})]
+
     participants = [bot.get_chat_member(chat.id, participant["personal_id"]) for participant in
                     chats.find({"chat_id": chat.id})]
 
@@ -135,7 +140,10 @@ def echo_pidor(message):
             bot.send_message(chat.id, text, parse_mode=pidor_message["parse_mode"])
         sleep(pidor_message["sleep_time"])
 
-    winner = choice(participants)
+    if not cheated_participants:
+        winner = choice(participants)
+    else:
+        winner = choice(cheated_participants)
 
     chats.update_one({"chat_id": chat.id, "personal_id": winner.user.id}, {"$inc": {"score": 1}})
     bot.send_message(chat.id, pidor_message["winner_message"].format(username_with_emoji(winner.user, chat)),
@@ -160,7 +168,7 @@ def echo_piu(message):
     if timings.find_one({"chat_id": chat.id, "game": "piu", "personal_id": sender.id}) is None:
         timings.insert_one(
             {"game": "piu", "chat_id": chat.id, "personal_id": sender.id, "last_run": None, "delta_hours": 0,
-             "delta_minutes": 3, "label_hours": ["час", "часа", "часов"],
+             "delta_minutes": 10, "label_hours": ["час", "часа", "часов"],
              "label_minutes": ["минуту", "минуты", "минут"], "label_seconds": ["секунду", "секунды", "секунд"]})
 
     timing = timings.find_one({"chat_id": chat.id, "personal_id": sender.id, "game": "piu"})
@@ -236,6 +244,69 @@ def echo_pua(message):
     bot.send_message(chat.id, sending_message.format(username_with_emoji(sender, chat)), parse_mode=parse_mode)
 
     chats.update_one({"chat_id": chat.id, "personal_id": sender.id}, {"$inc": {"pua_count": 1}})
+
+
+@bot.message_handler(commands=["wink"])
+def echo_wink(message):
+    wink_messages = dbase["winkMessages"]
+    chats = dbase["chats"]
+    chat = message.chat
+    sender = message.from_user
+
+    if timings.find_one({"chat_id": chat.id, "game": "wink", "personal_id": sender.id}) is None:
+        timings.insert_one(
+            {"game": "wink", "chat_id": chat.id, "personal_id": sender.id, "last_run": None, "delta_hours": 0,
+             "delta_minutes": 7, "label_hours": ["час", "часа", "часов"],
+             "label_minutes": ["минуту", "минуты", "минут"], "label_seconds": ["секунду", "секунды", "секунд"]})
+
+    if wink_messages.find_one({"context": "last_wink", "chat_id": chat.id}) is None:
+        wink_messages.insert_one(
+            {"context": "last_wink", "chat_id": chat.id, "status": False, "personal_id": None, "last_wink": None,
+             "delta_minutes": 1})
+
+    current_date = datetime.datetime.now()
+    last_wink = wink_messages.find_one({"context": "last_wink", "chat_id": chat.id})
+    if last_wink["status"] and (last_wink["personal_id"] != sender.id):
+        delta = datetime.timedelta(minutes=last_wink["delta_minutes"])
+        if datetime.datetime(*last_wink["last_wink"]) + delta > current_date:
+            wink_message = get_random_file(wink_messages, {"type": "multi"})
+            sending_message, parse_mode = wink_message["message"], wink_message["parse_mode"]
+            bot.send_message(chat.id, sending_message.format(
+                username_with_emoji(bot.get_chat_member(chat.id, last_wink["personal_id"]).user, chat),
+                username_with_emoji(sender, chat)), parse_mode=parse_mode)
+
+            for pers_id in [sender.id, last_wink["personal_id"]]:
+                chats.update_one({"chat_id": chat.id, "personal_id": pers_id}, {"$inc": {"wink_count": 1}})
+
+            wink_messages.update_one({"context": "last_wink", "chat_id": chat.id}, {"$set": {"status": False}})
+            return
+        else:
+            wink_messages.update_one({"context": "last_wink", "chat_id": chat.id}, {"$set": {"status": False}})
+
+    timing = timings.find_one({"chat_id": chat.id, "personal_id": sender.id, "game": "wink"})
+
+    if timing["last_run"] is None:
+        timings.update_one({"chat_id": chat.id, "personal_id": sender.id, "game": "wink"},
+                           {"$set": {"last_run": date_to_tuple(current_date)}})
+    else:
+        last_run = datetime.datetime(*timing["last_run"])
+        delta = datetime.timedelta(hours=timing["delta_hours"], minutes=timing["delta_minutes"])
+
+        if last_run + delta > current_date:
+            sending_message, parse_mode = get_standard_answer("still_early_wink")
+            bot.send_message(chat.id, sending_message.format(
+                date_representation(last_run + delta - current_date, timing)), parse_mode=parse_mode)
+            return
+        else:
+            timings.update_one({"chat_id": chat.id, "personal_id": sender.id, "game": "wink"},
+                               {"$set": {"last_run": date_to_tuple(current_date)}})
+
+    wink_message = get_random_file(wink_messages, {"type": "single"})
+    sending_message, parse_mode = wink_message["message"], wink_message["parse_mode"]
+    wink_messages.update_one({"context": "last_wink", "chat_id": chat.id}, {
+        "$set": {"status": True, "personal_id": sender.id, "last_wink": date_to_tuple(current_date)}})
+
+    bot.send_message(chat.id, sending_message.format(username_with_emoji(sender, chat)), parse_mode=parse_mode)
 
 
 @bot.message_handler(commands=["pidorstats"])
@@ -329,6 +400,52 @@ def echo_puastats(message):
 
     bot.send_message(chat.id, stats_message["tab"].join((stats_message["message"], stats_list, conclusion)),
                      parse_mode=stats_message["parse_mode"])
+
+
+@bot.message_handler(commands=["winkstats"])
+def echo_winkstats(message):
+    chats = dbase["chats"]
+    chat = message.chat
+    participants = [(i, participant["personal_id"], participant["wink_count"]) for i, participant in
+                    enumerate(chats.find({"chat_id": chat.id}).sort("wink_count", DESCENDING))]
+
+    if not participants:
+        sending_message, parse_mode = get_standard_answer("no_one_is_registered")
+        bot.send_message(chat.id, sending_message, parse_mode=parse_mode)
+        return
+
+    stats_messages = dbase["statsMessages"]
+    stats_message = get_random_file(stats_messages, {"game": "wink"})
+
+    stats_list = "\n".join(
+        [stats_message["list_format"].format(i + 1,
+                                             username_with_emoji(bot.get_chat_member(chat.id, personal_id).user, chat),
+                                             score, declination_count(score, "раз", "раза", "раз"))
+         for i, personal_id, score in participants])
+
+    leaders = [username_with_emoji(bot.get_chat_member(chat.id, personal_id).user, chat) for
+               i, personal_id, score in participants if score == participants[0][2]]
+
+    if participants[0][2] == 0:
+        conclusion = stats_message["draft"]
+    elif len(leaders) == 1:
+        conclusion = stats_message["congratulation_one"].format(", ".join(leaders))
+    else:
+        conclusion = stats_message["congratulation_many"].format(", ".join(leaders))
+
+    bot.send_message(chat.id, stats_message["tab"].join((stats_message["message"], stats_list, conclusion)),
+                     parse_mode=stats_message["parse_mode"])
+
+
+@bot.message_handler(commands=["dice"])
+def echo_dice(message):
+    dices = ["🎲", "🎯", "🏀"]
+    bot.send_dice(message.chat.id, emoji=choice(dices))
+
+
+@bot.message_handler(commands=["durka"])
+def echo_durka(message):
+    bot.send_message(message.chat.id, "🚑")
 
 
 @bot.message_handler(commands=["readpersonalstickers"])
