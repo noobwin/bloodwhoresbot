@@ -60,6 +60,10 @@ def username_with_emoji(user, chat):
 
     current_user = chats.find_one({"personal_id": user.id, "chat_id": chat.id})
 
+    if current_user is None:
+        add_new_player(user, chat)
+        current_user = chats.find_one({"personal_id": user.id, "chat_id": chat.id})
+
     if current_user["emoji"] is None:
         return user.username
     return "{} {}".format(user.username, current_user["emoji"])
@@ -101,7 +105,7 @@ def echo_pidor(message):
 
     if timings.find_one({"chat_id": chat.id, "game": "pidor"}) is None:
         timings.insert_one(
-            {"game": "pidor", "chat_id": chat["chat_id"], "last_run": None, "delta_hours": 24, "delta_minutes": 0,
+            {"game": "pidor", "chat_id": chat.id, "last_run": None, "delta_hours": 24, "delta_minutes": 0,
              "pidor_of_the_day": None, "label_hours": ["час", "часа", "часов"],
              "label_minutes": ["минута", "минуты", "минут"], "label_seconds": ["секунда", "секунды", "секунд"]})
 
