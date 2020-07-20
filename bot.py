@@ -20,7 +20,6 @@ MONGO_USERNAME = environ["MONGO_USERNAME"]
 MONGO_PASSWORD = environ["MONGO_PASSWORD"]
 MONGO_DB = environ["MONGO_DB"]
 
-
 with open("mongodb_url.txt", "r") as tk:
     MONGODB_TOKEN = tk.readline().format(MONGO_USERNAME, MONGO_PASSWORD, MONGO_DB).rstrip()
 
@@ -131,7 +130,7 @@ def echo_pidor(message):
             return
         else:
             timings.update_one({"chat_id": chat.id, "game": "pidor"},
-                               {"$set": {"last_run": date_to_tuple(last_run + delta)}})
+                               {"$set": {"last_run": date_to_tuple(current_date)}})
 
     pidor_messages = dbase["pidorMessages"]
 
