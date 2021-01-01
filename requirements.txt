@@ -7,3 +7,4 @@ pyTelegramBotAPI==3.7.2
 six==1.15.0
 urllib3==1.25.9
 emoji==0.5.4
+pydantic~=1.7.3
