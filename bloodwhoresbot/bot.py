@@ -8,6 +8,7 @@ from pymongo import DESCENDING
 
 from bloodwhoresbot.core.answers import Answers
 from bloodwhoresbot.core.database import Database
+from bloodwhoresbot.core.games.pidor_game import PidorGame
 from bloodwhoresbot.core.intro_stickers import IntroStickers
 from bloodwhoresbot.core.personal_stickers import PersonalStickers
 from bloodwhoresbot.core.user_system import UserSystem
@@ -30,7 +31,6 @@ user_system = UserSystem(db)
 answers = Answers(db)
 intro_stickers = IntroStickers(db)
 personal_stickers = PersonalStickers(db)
-timings = db.get_instance()["timings"]
 
 bot = telebot.TeleBot(BOT_TOKEN)
 
@@ -53,73 +53,41 @@ def echo_register(message):
 
 @bot.message_handler(commands=["pidor"])
 def echo_pidor(message):
-    chats = db.get_instance()["chats"]
-    cheated = db.get_instance()["cheated"]
     chat = message.chat
+    pidor_game = PidorGame(chat.id, db)
 
-    cheated_participants = [bot.get_chat_member(chat.id, participant["personal_id"]) for participant in
-                            cheated.find({"chat_id": chat.id})]
-
-    participants = [bot.get_chat_member(chat.id, participant["personal_id"]) for participant in
-                    chats.find({"chat_id": chat.id})]
-
-    if timings.find_one({"chat_id": chat.id, "game": "pidor"}) is None:
-        timings.insert_one(
-            {"game": "pidor", "chat_id": chat.id, "last_run": None, "delta_hours": 24, "delta_minutes": 0,
-             "pidor_of_the_day": None, "label_hours": ["час", "часа", "часов"],
-             "label_minutes": ["минута", "минуты", "минут"], "label_seconds": ["секунда", "секунды", "секунд"]})
-
-    if len(participants) <= 0:
+    if not user_system.get_users(chat):
         answer = answers.get(Context.not_enough_players)
         bot.send_message(chat.id, answer.message, parse_mode=answer.parse_mode)
+
         return
 
-    timing = timings.find_one({"chat_id": chat.id, "game": "pidor"})
-    current_date = datetime.datetime.now()
+    if not pidor_game.get_wait_time():
+        answer = answers.get(Context.still_early_pidor)
+        bot.send_message(chat.id, answer.message.format(
+            user_system.get_username(bot.get_chat_member(chat.id, pidor_game.get_pidor()).user, chat),
+            date_representation(pidor_game.get_wait_time())), parse_mode=answer.parse_mode)
 
-    if timing["last_run"] is None or timing["pidor_of_the_day"] is None:
-        timings.update_one({"chat_id": chat.id, "game": "pidor"}, {"$set": {"last_run": date_to_tuple(current_date)}})
-    else:
-        last_run = datetime.datetime(*timing["last_run"])
-        delta = datetime.timedelta(hours=timing["delta_hours"], minutes=timing["delta_minutes"])
+        return
 
-        if last_run + delta > current_date:
-            answer = answers.get(Context.still_early_pidor)
-            bot.send_message(chat.id, answer.message.format(
-                user_system.get_username(bot.get_chat_member(chat.id, timing["pidor_of_the_day"]).user, chat),
-                date_representation(last_run + delta - current_date, timing)), parse_mode=answer.parse_mode)
-            return
-        else:
-            timings.update_one({"chat_id": chat.id, "game": "pidor"},
-                               {"$set": {"last_run": date_to_tuple(current_date)}})
+    for message_type, message in pidor_game.get_intro_messages():
+        if message_type == 'sticker':
+            bot.send_sticker(chat.id, message.text)
+        elif message_type == 'text':
+            bot.send_message(chat.id, message.text, parse_mode=message.parse_mode)
 
-    pidor_messages = db.get_instance()["pidorMessages"]
+    pidor_game.choose_pidor()
 
-    pidor_message = get_random_file(pidor_messages, {})
+    pidor_id = pidor_game.get_pidor()
+    pidor = bot.get_chat_member(chat.id, pidor_id).user
+    pidor_username = user_system.get_username(pidor, chat)
+    pidor_message = pidor_game.get_pidor_message(pidor_username)
 
-    for text in pidor_message["intro_messages"]:
-        if text == "send_intro_sticker":
-            bot.send_sticker(chat.id, intro_stickers.get_random()["file_id"])
-        else:
-            bot.send_message(chat.id, text, parse_mode=pidor_message["parse_mode"])
-        sleep(pidor_message["sleep_time"])
+    bot.send_message(chat.id, pidor_message.text, parse_mode=pidor_message.parse_mode)
 
-    if not cheated_participants:
-        winner = choice(participants)
-    else:
-        winner = choice(cheated_participants)
-
-    chats.update_one({"chat_id": chat.id, "personal_id": winner.user.id}, {"$inc": {"score": 1}})
-    bot.send_message(chat.id, pidor_message["winner_message"].format(user_system.get_username(winner.user, chat)),
-                     parse_mode=pidor_message["parse_mode"])
-
-    timings.update_one({"chat_id": chat.id, "game": "pidor"}, {"$set": {"pidor_of_the_day": winner.user.id}})
-
-    sleep(pidor_message["sleep_time"])
-
-    personal_sticker = personal_stickers.get_random(winner.user)
+    personal_sticker = personal_stickers.get_random(pidor)
     if personal_sticker is not None:
-        bot.send_sticker(chat.id, personal_stickers.get_random(winner.user)["file_id"])
+        bot.send_sticker(chat.id, personal_stickers.get_random(pidor)["file_id"])
 
 
 @bot.message_handler(commands=["piu"])
@@ -132,8 +100,7 @@ def echo_piu(message):
     if timings.find_one({"chat_id": chat.id, "game": "piu", "personal_id": sender.id}) is None:
         timings.insert_one(
             {"game": "piu", "chat_id": chat.id, "personal_id": sender.id, "last_run": None, "delta_hours": 0,
-             "delta_minutes": 10, "label_hours": ["час", "часа", "часов"],
-             "label_minutes": ["минуту", "минуты", "минут"], "label_seconds": ["секунду", "секунды", "секунд"]})
+             "delta_minutes": 10})
 
     timing = timings.find_one({"chat_id": chat.id, "personal_id": sender.id, "game": "piu"})
     current_date = datetime.datetime.now()
@@ -180,8 +147,7 @@ def echo_pua(message):
     if timings.find_one({"chat_id": chat.id, "game": "pua", "personal_id": sender.id}) is None:
         timings.insert_one(
             {"game": "pua", "chat_id": chat.id, "personal_id": sender.id, "last_run": None, "delta_hours": 0,
-             "delta_minutes": 5, "label_hours": ["час", "часа", "часов"],
-             "label_minutes": ["минуту", "минуты", "минут"], "label_seconds": ["секунду", "секунды", "секунд"]})
+             "delta_minutes": 5})
 
     timing = timings.find_one({"chat_id": chat.id, "personal_id": sender.id, "game": "pua"})
     current_date = datetime.datetime.now()
@@ -220,8 +186,7 @@ def echo_wink(message):
     if timings.find_one({"chat_id": chat.id, "game": "wink", "personal_id": sender.id}) is None:
         timings.insert_one(
             {"game": "wink", "chat_id": chat.id, "personal_id": sender.id, "last_run": None, "delta_hours": 0,
-             "delta_minutes": 7, "label_hours": ["час", "часа", "часов"],
-             "label_minutes": ["минуту", "минуты", "минут"], "label_seconds": ["секунду", "секунды", "секунд"]})
+             "delta_minutes": 7})
 
     if wink_messages.find_one({"context": "last_wink", "chat_id": chat.id}) is None:
         wink_messages.insert_one(

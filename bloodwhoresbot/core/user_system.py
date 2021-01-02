@@ -31,7 +31,7 @@ class UserSystem:
         return True
 
     def get_user(self, personal_id, chat_id) -> Optional[User]:
-        current_user = self._users.find_one({"personal_id": personal_id, "chat_id": chat_id})
+        current_user = self._users.find_one({'personal_id': personal_id, 'chat_id': chat_id})
 
         if current_user:
             return User(**current_user)
@@ -43,3 +43,9 @@ class UserSystem:
 
     def _create_user(self, user, chat) -> User:
         return User(personal_id=user.id, chat_id=chat.id)
+
+    def get_users(self, chat):
+        return list(self._users.find({'chat_id': chat.id}))
+
+    def inc(self, user_id, chat_id):
+        self._users.update_one({'personal_id': user_id, 'chat_id': chat_id}, {'$inc': {'score': 1}})

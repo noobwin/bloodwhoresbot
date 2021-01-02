@@ -1,7 +1,7 @@
+from datetime import timedelta
 from random import choice
-from emoji import UNICODE_EMOJI
 
-import datetime
+from emoji import UNICODE_EMOJI
 
 
 def declination_count(num, var1, var2, var3):
@@ -23,7 +23,12 @@ def text_has_emoji(text):
     return None
 
 
-def date_representation(date, labels):
+def date_representation(date: timedelta):
+    # TODO: Fix this mess
+    labels = {"label_hours": ["час", "часа", "часов"],
+              "label_minutes": ["минута", "минуты", "минут"],
+              "label_seconds": ["секунда", "секунды", "секунд"]}
+
     return " ".join(["{} {}".format(timing, declination_count(timing, var1, var2, var3)) for timing, var1, var2, var3 in
                      [(date.seconds // 3600, *labels["label_hours"]),
                       ((date.seconds // 60) % 60, *labels["label_minutes"]),

@@ -39,11 +39,16 @@ class Answer(BaseModel):
     _id: Any
     context: Context
     message: str
-    parse_mode: Optional[str]
+    parse_mode: Optional[str] = None
 
 
 class Timing(BaseModel):
     _id: Any
     game: GameEnum
     chat_id: int
-    personal_id: Optional[int]
+    personal_id: Optional[int] = None
+
+
+class Message(BaseModel):
+    text: str
+    parse_mode: Optional[str] = None
